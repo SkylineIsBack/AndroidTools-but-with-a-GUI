@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# By Skyline
+
+out1="$(zenity --list --radiolist --width=500 --height=300 --title="Android Tools" --text="What do you want do?" --cancel-label=Close --column=Selection --column=Options FALSE "Install adb and fastboot" FALSE "Check available fastboot devices" FALSE "Check available ADB devices" FALSE "Flash MIUI using fastboot" FALSE "Flash recovery using fastboot" FALSE "Push a file to the Android device" FALSE "About")"
+if [[ "$out1" == "Install adb and fastboot" ]];
+then
+    zenity --info --title "Root Password" --text="Root password needed for installing ADB and Fastboot" --no-wrap
+    zenity --password --title "Root Password" | sudo -S apt install adb fastboot
+    [[ "$?" != "0" ]] && exit 1
+    zenity --info --title "Success" --text="Installed adb and fastboot successfully" --no-wrap
+elif [[ "$out1" == "Check available fastboot devices" ]];
+then
+    fastbootdevices="$(fastboot devices)"
+    zenity --info --title "Fastboot devices" --text "$fastbootdevices" --no-wrap
+elif [[ "$out1" == "Check available ADB devices" ]];
+then
+    adbdevices="$(adb devices)"
+    zenity --info --title "ADB devices" --text "$adbdevices" --no-wrap
+elif [[ "$out1" == "Flash MIUI using fastboot" ]];
+then
+    zenity --info --title "Select" --text="Now select the fastboot image you downloaded" --no-wrap
+    miuifastbootimage="$(zenity --file-selection --title "Select the fastboot image")"
+    [[ "$?" != "0" ]] && exit 1
+    tar -xf $miuifastbootimage | zenity --progress --pulsate --text "Extracting" --no-cancel --auto-close
+    cd "$(tar tf "$miuifastbootimage" | head -n1)"
+    miuifastbootscript="$(find -name '*.sh' | sed 's/^/0\n/g' | zenity --list --radiolist --column Select --column Scripts)"
+    [[ "$?" != "0" ]] && exit 1
+    if zenity --question --title "Confirmation" --text "Do you wanna execute this script ?" --no-wrap
+    then
+        ./$miuifastbootscript
+    else
+        exit 1
+    fi
+    zenity --info --title Successful --text "Successfully flashed miui" --no-wrap
+elif [[ "$out1" == "Flash recovery using fastboot" ]];
+then
+    selectrecovery="$(zenity --file-selection --title "Select the recovery image")"
+    [[ "$?" != "0" ]] && exit 1
+    if zenity --question --title "Confirmation" --text="Do wanna flash $selectrecovery to recovery ?" --no-wrap
+    then
+        fastboot flash recovery "$selectrecovery"
+        zenity --info --title "Success" --text "Flashed recovery successfully. Now you can reboot to recovery using your volume up button and power button." --no-wrap
+    else
+        exit 1
+    fi
+elif [[ "$out1" == "Push a file to the Android device" ]];
+then
+    selectfile="$(zenity --file-selection --title "Select file" --text "Select the file you wanna push")"
+    [[ "$?" != "0" ]] && exit 1
+    if zenity --question --title "Confirmation" --text "Do you really wanna push that file ?" --no-wrap
+    then
+        adb devices
+        adb push "$selectfile" /sdcard/
+        zenity --info --title "Success" --text "Successfully pushed "$selectfile"" --no-wrap
+    else
+        exit 1
+    fi
+elif [[ "$out1" == "About" ]];
+then
+    zenity --info --title "About" --text "Made by Skyline." --no-wrap
+else
+    exit 1
+fi
